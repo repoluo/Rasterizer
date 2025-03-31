@@ -24,6 +24,13 @@ struct Vertex
     Vertex(glm::vec4 p, glm::vec3 c, glm::vec4 n, glm::vec2 u)
         : m_pos(p), m_color(c), m_normal(n), m_uv(u)
     {}
+
+    Vertex(float x, float y) :
+        m_pos(glm::vec4(x, y, 0, 0)),
+        m_color(glm::vec3()),
+        m_normal(glm::vec4()),
+        m_uv(glm::vec2())
+    {}
 };
 
 // Each Polygon can be decomposed into triangles that fill its area.
@@ -33,6 +40,22 @@ struct Triangle
     // The indices correspond to the std::vector of Vertices stored in the Polygon
     // which stores this Triangle
     unsigned int m_indices[3];
+};
+
+class Segment {
+    // without consider horizon or vertical segment
+    Vertex p1;
+    Vertex p2;
+    float gradient;
+public:
+    Segment(float x1, float y1, float x2, float y2);
+    Segment(const Vertex& v1, const Vertex& v2);
+    bool getIntersection(float, float*) const;
+    glm::vec4 getCoordinate() const;
+    glm::vec2 getP1Coordinate() const;
+    glm::vec2 getP2Coordinate() const;
+    Vertex getP1() const { return p1; }
+    Vertex getP2() const { return p2; }
 };
 
 class Polygon

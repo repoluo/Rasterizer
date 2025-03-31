@@ -57,6 +57,10 @@ void MainWindow::on_actionLoad_Scene_triggered()
     std::vector<Polygon> polygons;
 
     QString filename = QFileDialog::getOpenFileName(0, QString("Load Scene File"), QDir::currentPath().append(QString("../..")), QString("*.json"));
+    // in the case of quit to select file
+    if (filename.length() == 0) {
+        return;
+    }
     int i = filename.length() - 1;
     while(QString::compare(filename.at(i), QChar('/')) != 0)
     {
