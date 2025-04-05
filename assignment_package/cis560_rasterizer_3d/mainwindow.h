@@ -9,7 +9,13 @@
 
 namespace Ui {
 class MainWindow;
+enum class OperationMode;
 }
+
+enum class OperationMode {
+    Translation, // Default mode, translate camera position
+    Rotation, // Rotation mode, rotate camera at specific axis
+};
 
 class MainWindow : public QMainWindow
 {
@@ -44,6 +50,9 @@ private:
 
     //The instance of the Rasterizer used to render our scene
     Rasterizer rasterizer;
+
+    // Operation mode
+    OperationMode opMode = OperationMode::Translation;
 
 };
 

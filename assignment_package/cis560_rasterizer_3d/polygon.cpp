@@ -41,8 +41,11 @@ bool Segment::getIntersection(float y, float* x) const {
     if (y >= std::min(p1.m_pos[1], p2.m_pos[1]) && y <= std::max(p2.m_pos[1], p1.m_pos[1])) {
         result = true;
     }
+    if (gradient == 0) {
+        result = false;
+    }
     if (result) {
-        if (gradient == 0 || gradient == std::numeric_limits<float>::infinity()) {
+        if (gradient == std::numeric_limits<float>::infinity()) {
             (*x) = p1.m_pos[0];
         } else {
             (*x) = ((1.f / gradient) * (y - p1.m_pos[1])) + p1.m_pos[0];

@@ -16,13 +16,74 @@
 //Poke around in this file if you want, but it's virtually uncommented!
 //You won't need to modify anything in here to complete the assignment.
 
-void MainWindow::keyPressEvent(QKeyEvent *e)
-{
-    switch(e->key())
-    {
+void MainWindow::keyPressEvent(QKeyEvent *e) {
     //The key shortcuts for the other menu commands were set in Qt's GUI
     //editor. This one was implemented as a key press event for illustration purposes.
-    case Qt::Key_Escape : on_actionQuit_Esc_triggered();  break;
+    switch (e->key()) {
+    case Qt::Key_Escape:
+        on_actionQuit_Esc_triggered();
+        break;
+
+    // Translate or rotate camera based on operation mode
+    case Qt::Key_Q:
+        if (opMode == OperationMode::Translation) {
+            rasterizer.getCamera().yDirMove(1.5);
+        } else if (opMode == OperationMode::Rotation) {
+            rasterizer.getCamera().zDirRotationDegree(85);
+        }
+        break;
+
+    case Qt::Key_E:
+        if (opMode == OperationMode::Translation) {
+            rasterizer.getCamera().yDirMove(-1.5);
+        } else if (opMode == OperationMode::Rotation) {
+            rasterizer.getCamera().zDirRotationDegree(-85);
+        }
+        break;
+
+    case Qt::Key_A:
+        if (opMode == OperationMode::Translation) {
+            rasterizer.getCamera().xDirMove(-1.5);
+        } else if (opMode == OperationMode::Rotation) {
+            rasterizer.getCamera().yDirRotationDegree(85);
+        }
+        break;
+
+    case Qt::Key_D:
+        if (opMode == OperationMode::Translation) {
+            rasterizer.getCamera().xDirMove(1.5);
+        } else if (opMode == OperationMode::Rotation) {
+            rasterizer.getCamera().yDirRotationDegree(-85);
+        }
+        break;
+
+    case Qt::Key_W:
+        if (opMode == OperationMode::Translation) {
+            rasterizer.getCamera().zDirMove(1.5);
+        } else if (opMode == OperationMode::Rotation) {
+            rasterizer.getCamera().xDirRotationDegree(85);
+        }
+        break;
+
+    case Qt::Key_S:
+        if (opMode == OperationMode::Translation) {
+            rasterizer.getCamera().zDirMove(-1.5);
+        } else if (opMode == OperationMode::Rotation) {
+            rasterizer.getCamera().xDirRotationDegree(-85);
+        }
+        break;
+
+    // Change operation mode
+    case Qt::Key_R:
+        opMode = OperationMode::Rotation;
+        break;
+
+    case Qt::Key_T:
+        opMode = OperationMode::Translation;
+        break;
+
+    default:
+        break;
     }
 
     rendered_image = rasterizer.renderScene();

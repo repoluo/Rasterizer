@@ -5,6 +5,8 @@
 #include <iostream>
 #include <algorithm>
 
+const QRgb BACKGROUND_COLOR = qRgb(127.f, 127.f, 127.f);
+
 using std::min;
 
 Rasterizer::Rasterizer(const std::vector<Polygon>& polygons)
@@ -17,7 +19,7 @@ Rasterizer::Rasterizer(const std::vector<Polygon>& polygons)
  * @return A QImage represent a scene.
  */
 QImage Rasterizer::renderScene() {
-    float W = SCREENSIZE, H = SCREENSIZE;
+    float W =  SCREENSIZE, H = SCREENSIZE;
     QImage result(W, H, QImage::Format_RGB32);
     z_buffer.resize(W * H);
     std::fill(z_buffer.begin(), z_buffer.end(), std::numeric_limits<float>::infinity());
@@ -25,7 +27,8 @@ QImage Rasterizer::renderScene() {
     // Fill the image with black pixels.
     // Note that qRgb creates a QColor,
     // and takes in values [0, 255] rather than [0, 1].
-    result.fill(qRgb(127.f, 127.f, 127.f));
+    result.fill(BACKGROUND_COLOR);
+
 
     // TODO: Complete the various components of code that make up this function.
     // It should return the rasterized image of the current scene.
@@ -45,8 +48,12 @@ QImage Rasterizer::renderScene() {
     // vertex coordinates. This lets you easily use loops to perform operations
     // on your scene components, rather than copy-pasting operations three times
     // each!
-
-    for (const Polygon& polygon : this->m_polygons) {
+    for (Polygon polygon : m_polygons) {
+        for (Vertex& v : polygon.m_verts) {
+            worldSpaceToCameraSpace(v);
+            cameraSpaceToScreenSpace(v);
+            screenSpaceToPixelSpace(v);
+        }
         renderPolygon(polygon, result);
     }
 
@@ -67,7 +74,7 @@ void Rasterizer::renderPolygon(const Polygon &polygon, QImage& result) {
     //assemble triangular with segment
     auto triWithSegment = getTriangularSegment(polygon);
     for (auto& tri : triWithSegment) {
-        renderTriangular(tri, result);
+        renderTriangular(tri, result, polygon.mp_texture);
     }
 }
 
@@ -80,14 +87,20 @@ void Rasterizer::renderPolygon(const Polygon &polygon, QImage& result) {
  * @return an frag that interpolate by fragPos, v1, v2, v3
  */
 Vertex Rasterizer::interpolate(const glm::vec2 &fragPos,
-                                     const Vertex &v1,
-                                     const Vertex &v2,
-                                     const Vertex &v3) {
+                               const Vertex &v1,
+                               const Vertex &v2,
+                               const Vertex &v3,
+                               const QImage* const texture = nullptr) const{
     BarycentricWeights w = computeBarycentricWeights(fragPos, glm::vec2(v1.m_pos), glm::vec2(v2.m_pos), glm::vec2(v3.m_pos));
     glm::vec4 pos = w.s1 * v1.m_pos + w.s2 * v2.m_pos + w.s3 * v3.m_pos;
-    glm::vec3 color = w.s1 * v1.m_color + w.s2 * v2.m_color + w.s3 * v3.m_color;
     glm::vec4 normal = w.s1 * v1.m_normal + w.s2 * v2.m_normal + w.s3 * v3.m_normal;
-    glm::vec2 uv = glm::vec2();
+    glm::vec2 uv = w.s1 * v1.m_uv + w.s2 * v2.m_uv + w.s3 * v3.m_uv;
+    glm::vec3 color;
+    if (texture) {
+        color = GetImageColor(uv, texture);
+    } else {
+        color = glm::vec3(255, 0, 255);
+    }
     color.r = std::min(color.r, 255.f);
     color.g = std::min(color.g, 255.f);
     color.b = std::min(color.b, 255.f);
@@ -103,25 +116,34 @@ Vertex Rasterizer::interpolate(const glm::vec2 &fragPos,
  * @param tri
  * @param result : QImage
  */
-void Rasterizer::renderTriangular(const std::array<Segment, 3> &tri, QImage &result) {
+void Rasterizer::renderTriangular(const std::array<Segment, 3> &tri, QImage &result, const QImage* const texture) {
+    const Vertex& v1 = tri[0].getP1();
+    const Vertex& v2 = tri[0].getP2();
+    const Vertex& v3 = tri[1].getP2();
+    glm::vec2 v1_screen(v1.m_pos.x, v1.m_pos.y);
+    glm::vec2 v2_screen(v2.m_pos.x, v2.m_pos.y);
+    glm::vec2 v3_screen(v3.m_pos.x, v3.m_pos.y);
+    float cross = (v2_screen.x - v1_screen.x) * (v3_screen.y - v1_screen.y)
+                  - (v2_screen.y - v1_screen.y) * (v3_screen.x - v1_screen.x);
+    if (cross >= 0.0f) {
+        return;
+    }
     float W = (float)result.width();
     float H = (float)result.height();
     glm::vec4 boundingBox = getBoundingBox(tri);
     clip(boundingBox, W, H);
     float yLower = boundingBox[2];
     auto intervals = getLeftAndRightIntersectionX(tri, boundingBox);
-    for (float i = 0.f; i < intervals.size(); i += 1.f) {
-        float y = i + yLower;
-        for (float x = (int)intervals[i].first; x < intervals[i].second; x += 1.f) {
+    for (unsigned int i = 0; i < intervals.size(); i++) {
+        float y = std::ceil(i + yLower);
+        for (unsigned int x = std::ceil(intervals[i].first); x < std::ceil(intervals[i].second); x++) {
             glm::vec2 fragPos(x, y);
-            const Vertex& v1 = tri[0].getP1();
-            const Vertex& v2 = tri[0].getP2();
-            const Vertex& v3 = tri[1].getP2();
-            Vertex frag = interpolate(fragPos, v1, v2, v3);
-            if (frag.m_pos.z < z_buffer[x + W * y]) {
+            Vertex frag = interpolate(fragPos, v1, v2, v3, texture);
+            if (frag.m_pos.z < z_buffer[x + W * y] && frag.m_pos.z > 0 && frag.m_pos.z < 100) {
+                frag.m_color = reflectionColor(frag, frag.m_color);
                 QColor color(frag.m_color.r, frag.m_color.g, frag.m_color.b);
                 // std::cout << frag.m_color.r << frag.m_color.g << frag.m_color.b << '\n';
-                result.setPixelColor((int)x, (int)y, color);
+                result.setPixelColor(x, y, color);
                 z_buffer[x + W * y] = frag.m_pos.z;
             }
         }
@@ -133,7 +155,7 @@ void Rasterizer::renderTriangular(const std::array<Segment, 3> &tri, QImage &res
  * @param polygon
  * @return The triangular of a polygon, which is constructed with three segment
  */
-std::vector<std::array<Segment, 3>> Rasterizer::getTriangularSegment(const Polygon& polygon) {
+std::vector<std::array<Segment, 3>> Rasterizer::getTriangularSegment(const Polygon& polygon) const {
     std::vector<std::array<Segment, 3>> triWithSegment;
     for (const Triangle& tri : polygon.m_tris) {
         // find the vertex index of triangular in polygon
@@ -157,20 +179,23 @@ std::vector<std::array<Segment, 3>> Rasterizer::getTriangularSegment(const Polyg
  * @return a lists of interval where to be add color
  */
 std::vector<std::pair<float, float>> Rasterizer::getLeftAndRightIntersectionX(const std::array<Segment, 3> &segments,
-                                                                              const glm::vec4 &boundingBox) {
+                                                                              const glm::vec4 &boundingBox) const {
     std::vector<std::pair<float, float>> intersectionBounds;
     float yLower = boundingBox[2];
     float yUpper = boundingBox[3];
-    for (float y = yLower; y < yUpper; y++) {
+    for (int y = std::ceil(yLower); y < std::ceil(yUpper); y++) {
         float xLeft = SCREENSIZE;
         float xRight = 0.f;
         for (const Segment& segment : segments) {
             float temp = -1.f;
-            if (segment.getIntersection(y, &temp)) {
-                xLeft = std::max(std::min(xLeft, temp), 0.f);
-                xRight = std::min(std::max(xRight, temp), SCREENSIZE);
+            bool intersection = segment.getIntersection(y, &temp);
+            if (intersection) {
+                xLeft = std::min(xLeft, temp);;
+                xRight = std::max(xRight, temp);
             }
         }
+        xLeft = std::max(xLeft, 0.f);
+        xRight = std::min(xRight, SCREENSIZE);
         // std::cout << xLeft << ' ' << xRight << '\n'; // for debug
         intersectionBounds.push_back({xLeft, xRight});
     }
@@ -182,7 +207,7 @@ std::vector<std::pair<float, float>> Rasterizer::getLeftAndRightIntersectionX(co
  * @param triWithSegment
  * @return (x1, x2, y1, y2)
  */
-glm::vec4 Rasterizer::getBoundingBox(const std::array<Segment, 3> &triWithSegment) {
+glm::vec4 Rasterizer::getBoundingBox(const std::array<Segment, 3> &triWithSegment) const {
     glm::vec2 p1 = triWithSegment[0].getP1Coordinate();
     glm::vec2 p2 = triWithSegment[0].getP2Coordinate();
     glm::vec2 p3 = triWithSegment[1].getP2Coordinate();
@@ -200,11 +225,89 @@ glm::vec4 Rasterizer::getBoundingBox(const std::array<Segment, 3> &triWithSegmen
  * @param W
  * @param H
  */
-void Rasterizer::clip(glm::vec4 &boundingBox, float W, float H) {
+void Rasterizer::clip(glm::vec4 &boundingBox, float W, float H) const {
     boundingBox[0] = std::max(boundingBox[0], 0.f);
     boundingBox[1] = std::min(boundingBox[1], W);
     boundingBox[2] = std::max(boundingBox[2], 0.f);
     boundingBox[3] = std::min(boundingBox[3], H);
+}
+
+Vertex &Rasterizer::worldSpaceToCameraSpace(Vertex &v) {
+    v.m_pos = camera.getViewMatrix() * v.m_pos;
+    return v;
+}
+
+Vertex &Rasterizer::cameraSpaceToScreenSpace(Vertex &v) {
+    v.m_pos = camera.getProjectionMatrix() * v.m_pos;
+    v.m_pos /= v.m_pos.w == 0 ? 1 : v.m_pos.w; // Transform it into homogenious coordinate
+    return v;
+}
+
+Vertex &Rasterizer::screenSpaceToPixelSpace(Vertex &v) {
+    float W = getWidth();
+    float H = getHeight();
+    v.m_pos.x = (v.m_pos.x + 1) * W / 2;
+    v.m_pos.y = (1 - v.m_pos.y) * H / 2;
+    return v;
+}
+
+Vertex Rasterizer::pixelSpaceToWorldSpace(Vertex v) {
+    float W = getWidth();
+    float H = getHeight();
+    // Pixel to screen
+    v.m_pos.x = v.m_pos.x * 2 / W - 1;
+    v.m_pos.y = 1 - v.m_pos.y * 2 / H;
+    // Unhomogenious
+    v.m_pos *= v.m_pos.w == 0 ? 1 : v.m_pos.w;
+    // Inverse projection matrix
+    v.m_pos = glm::inverse(camera.getProjectionMatrix()) * v.m_pos;
+    // Inverse view matrix
+    v.m_pos = glm::inverse(camera.getViewMatrix()) * v.m_pos;
+    return v;
+}
+
+Camera &Rasterizer::getCamera() {
+    return camera;
+}
+
+int Rasterizer::getWidth() const {
+    return width;
+}
+
+int Rasterizer::getHeight() const {
+    return height;
+}
+
+/**
+ * @brief Rasterizer::reflectionColor
+ * @param v
+ * @param color_
+ * @return color which apply blinn-phong shading model
+ */
+glm::vec3 Rasterizer::reflectionColor(Vertex &v, glm::vec3& color_) {
+    glm::vec3 normal = glm::normalize(glm::vec3(v.m_normal));
+
+    glm::vec3 lightPos = glm::vec3(100, 100, 50);
+    glm::vec3 fragPos = glm::vec3(pixelSpaceToWorldSpace(v).m_pos);
+    glm::vec3 lightDir = glm::normalize(lightPos - fragPos);
+    glm::vec3 viewDir = glm::normalize(glm::vec3(-camera.getForwardDir()));
+    glm::vec3 halfDir = glm::normalize(lightDir + viewDir);
+
+    float diffuse = std::max(0.f, glm::dot(normal, lightDir));
+    float ambient = 0.5f;
+    float specular = std::pow(std::max(0.f, glm::dot(normal, halfDir)), 200);
+
+    glm::vec3 ambientColor = ambient * color_;
+    glm::vec3 diffuseColor = diffuse * color_;
+    glm::vec3 specularColor = specular * glm::vec3(255.0f);
+
+    glm::vec3 finalColor = ambientColor + diffuseColor + specularColor;
+
+    finalColor.r = std::min(finalColor.r, 255.f);
+    finalColor.g = std::min(finalColor.g, 255.f);
+    finalColor.b = std::min(finalColor.b, 255.f);
+
+    return finalColor;
 }
 
 
@@ -215,7 +318,7 @@ float Rasterizer::computeTriangleArea(const glm::vec2 &v1,
     //       composed of the three input vertex positions
     glm::vec3 p1p2(v2 - v1, 0.f);
     glm::vec3 p1p3(v3 - v1, 0.f);
-    float area = glm::length(glm::cross(p1p2, p1p3)) * 0.5f;
+    float area = glm::length(glm::cross(p1p2, p1p3)) * 0.5;
     return area;
 }
 
@@ -249,26 +352,28 @@ float Rasterizer::perspectiveCorrectInterpolateZ(float z1, float z2, float z3,
     // TODO: Use the perspective-correct Z interpolation formula
     //       to calculate the camera-space Z coordinate of the fragment
     //       whose barycentric weights have been passed in.
-    return 0.f;
+    float reciprocalZ = baryWeights.s1 / z1 + baryWeights.s2 / z2 + baryWeights.s3 / z3;
+    float z = 1.f / reciprocalZ;
+    return z;
 }
 
-template<class T>
-T Rasterizer::perspectiveCorrectInterpolateAttrib(const T &v1Attrib,
-                                                  const T &v2Attrib,
-                                                  const T &v3Attrib,
-                                                  float z1, float z2, float z3,
-                                                  float fragmentZcoord,
-                                                  const BarycentricWeights &baryWeights) const {
-    // TODO: Use the perspective-correct vertex attribute interpolation
-    //       formula to interpolate the three input vertex attributes based
-    //       on the input barycentric weights and input vertex and fragment Z coordinates.
-    // You will use this function to interpolate UV coordinates and vertex normals,
-    // at the very least.
+// template<class T>
+// T Rasterizer::perspectiveCorrectInterpolateAttrib(const T &v1Attrib,
+//                                                   const T &v2Attrib,
+//                                                   const T &v3Attrib,
+//                                                   float z1, float z2, float z3,
+//                                                   float fragmentZcoord,
+//                                                   const BarycentricWeights &baryWeights) const {
+//     // TODO: Use the perspective-correct vertex attribute interpolation
+//     //       formula to interpolate the three input vertex attributes based
+//     //       on the input barycentric weights and input vertex and fragment Z coordinates.
+//     // You will use this function to interpolate UV coordinates and vertex normals,
+//     // at the very least.
 
-    // Example invocation of this function:
-    // glm::vec2 uv = perspectiveCorrectInterpolateAttrib<glm::vec2>(uv1, uv2, uv3,
-    //                                                               z1, z2, z3,
-    //                                                               fragZ,
-    //                                                               baryWeights);
-}
+//     // Example invocation of this function:
+//     // glm::vec2 uv = perspectiveCorrectInterpolateAttrib<glm::vec2>(uv1, uv2, uv3,
+//     //                                                               z1, z2, z3,
+//     //                                                               fragZ,
+//     //                                                               baryWeights);
+// }
 
