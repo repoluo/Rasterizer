@@ -2,19 +2,7 @@
 #include <iostream>
 
 
-/*
-Additionally, your camera should implement the following functions:
-此外，您的相机应实现以下功能：
 
-A function which returns a view matrix based on the camera's local axes and position. You may not use GLM's lookAt function for this.
-一个返回基于相机本地轴的视图矩阵的函数 和位置。您可以不使用GLM的 lookAt 函数。
-A function which returns a perspective projection matrix based on the camera's clipping planes, aspect ratio, and field of view. You may not use GLM's persp function for this. Note that the example renders were made without converting the FOV from degrees to radians; if you do this your renders will still be correct, but they won't match the examples.
-返回基于的透视投影矩阵的函数 相机的裁剪平面、长宽比和视野。你可能不会 使用GLM的 persp 函数。请注意，示例渲染已经完成 没有将视场从角度转换为弧度；如果你这样做你的渲染 仍然是正确的，但它们与例子不符。
-Three functions that translate the camera along each of its local axes, both forward and backward. The amount of translation should be determined by an input to the function.
-三个功能可以使相机沿着每个局部轴移动， 向前和向后。翻译量应由 函数的输入。
-Three functions that rotate the camera about each of its local axes. Note that these functions should only alter the orientation of the camera; its position should not change. The amount of rotation should be determined by an input to the function.
-三个功能，旋转相机的每一个本地轴。请注意, 这些功能只能改变相机的方向；其位置 不应该改变。旋转的量应该由输入来决定 这个函数。
-*/
 /**
  * @brief Camera::getViewMatrix
  *        A function which returns a view matrix based on the camera's local axes and position.
