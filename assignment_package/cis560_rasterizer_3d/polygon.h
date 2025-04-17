@@ -54,6 +54,7 @@ public:
     glm::vec4 getCoordinate() const;
     glm::vec2 getP1Coordinate() const;
     glm::vec2 getP2Coordinate() const;
+    float getGradient() const;
     Vertex getP1() const { return p1; }
     Vertex getP2() const { return p2; }
 };

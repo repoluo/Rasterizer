@@ -66,8 +66,16 @@
     </property>
     <addaction name="actionEquilateral_Triangle"/>
    </widget>
+   <widget class="QMenu" name="menuShadingMode">
+    <property name="title">
+     <string>Shading Mode</string>
+    </property>
+    <addaction name="actionBlinnPhong"/>
+    <addaction name="actionWireframes"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuScenes"/>
+   <addaction name="menuShadingMode"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
    <attribute name="toolBarArea">
@@ -102,6 +110,16 @@
   <action name="actionQuit_Esc">
    <property name="text">
     <string>Quit (Esc)</string>
+   </property>
+  </action>
+  <action name="actionBlinnPhong">
+   <property name="text">
+    <string>BlinnPhong</string>
+   </property>
+  </action>
+  <action name="actionWireframes">
+   <property name="text">
+    <string>WireFrames</string>
    </property>
   </action>
  </widget>

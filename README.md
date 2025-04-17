@@ -30,3 +30,7 @@ Segment类中`Segment::getIntersection`函数用于判断一条水平线与线�
 ![alt text](3D_result/3D_wahoo_1.bmp)
 ![alt text](3D_result/3D_wahoo_2.bmp)
 ![alt text](3D_result/3D_cube.bmp)
+
+## 8 线框渲染
+实现线框渲染，增加Blinn-Phong模型和线框渲染的切换。
+![alt text](3D_result/3D_wahoo_wireframes.bmp)

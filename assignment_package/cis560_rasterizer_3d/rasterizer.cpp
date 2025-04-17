@@ -115,8 +115,39 @@ Vertex Rasterizer::interpolate(const glm::vec2 &fragPos,
  *        use barycentric weight interpolate the set color for each fragment.
  * @param tri
  * @param result : QImage
+ * @param texture : QImage
  */
 void Rasterizer::renderTriangular(const std::array<Segment, 3> &tri, QImage &result, const QImage* const texture) {
+    switch (shadingMode) {
+    case ShadingMode::BlinnPhong:
+        renderTriangularBlinnPhong(tri, result, texture);
+        break;
+    case ShadingMode::Wireframes:
+        renderTriangularWireFrames(tri, result, texture);
+        break;
+    }
+}
+
+/**
+ * @brief Rasterizer::setShadingMode
+ *        Set shading mode.
+ * @param shadingMode_
+ */
+void Rasterizer::setShadingMode(ShadingMode shadingMode_) {
+    shadingMode = shadingMode_;
+}
+
+
+/**
+ * @brief Rasterizer::renderTriangularBlinnPhong
+ *        Rendering a triangular, first get bounding box, the clip bounding box,
+ *        and then find the left and right bound of intersection, finally,
+ *        use barycentric weight interpolate the set color for each fragment.
+ * @param tri
+ * @param result
+ * @param texture
+ */
+void Rasterizer::renderTriangularBlinnPhong(const std::array<Segment, 3> &tri, QImage &result, const QImage * const texture){
     const Vertex& v1 = tri[0].getP1();
     const Vertex& v2 = tri[0].getP2();
     const Vertex& v3 = tri[1].getP2();
@@ -148,6 +179,91 @@ void Rasterizer::renderTriangular(const std::array<Segment, 3> &tri, QImage &res
             }
         }
     }
+}
+
+/**
+ * @brief Rasterizer::renderTriangularWireFrames
+ *        Rendering a triangular, in form of line rendering. Use Bresenham algorithm to draw a segment.
+ * @param tri
+ * @param result
+ * @param texture
+ */
+void Rasterizer::renderTriangularWireFrames(const std::array<Segment, 3> &tri, QImage &result, const QImage * const texture) {
+    const Vertex& v1 = tri[0].getP1();
+    const Vertex& v2 = tri[0].getP2();
+    const Vertex& v3 = tri[1].getP2();
+    glm::vec2 v1_screen(v1.m_pos.x, v1.m_pos.y);
+    glm::vec2 v2_screen(v2.m_pos.x, v2.m_pos.y);
+    glm::vec2 v3_screen(v3.m_pos.x, v3.m_pos.y);
+
+    Segment seg1 = tri[0];
+    Segment seg2 = tri[1];
+    Segment seg3 = tri[2];
+    std::vector<std::pair<glm::vec2, glm::vec3>> line1 = bresenhamLine(seg1);
+    std::vector<std::pair<glm::vec2, glm::vec3>> line2 = bresenhamLine(seg2);
+    std::vector<std::pair<glm::vec2, glm::vec3>> line3 = bresenhamLine(seg3);
+    for (auto& [point, color] : line1) {
+        result.setPixelColor(point.x, point.y, QColor(color.r, color.g, color.b));
+    }
+    for (auto& [point, color] : line2) {
+        result.setPixelColor(point.x, point.y, QColor(color.r, color.g, color.b));
+    }
+    for (auto& [point, color] : line3) {
+        result.setPixelColor(point.x, point.y, QColor(color.r, color.g, color.b));
+    }
+}
+
+/**
+ * @brief Rasterizer::bresenhamLine
+ *        Implementation of Bresenham algorithm.
+ * @param seg : input segment contain two point, a gradient and some function.
+ * @return a vector of a series of points need to be drawn in screen.
+ */
+std::vector<std::pair<glm::vec2, glm::vec3>> Rasterizer::bresenhamLine(Segment seg) {
+    int x1 = seg.getP1().m_pos.x;
+    int y1 = seg.getP1().m_pos.y;
+    int x2 = seg.getP2().m_pos.x;
+    int y2 = seg.getP2().m_pos.y;
+    bool isSteep = std::abs(seg.getGradient()) > 1; // whether segment is steep, (gradient > 1)
+    // if is steep, swap the role of x and y
+    if (isSteep) {
+        std::swap(x1, y1);
+        std::swap(x2, y2);
+    }
+
+    // draw from left to right
+    if (x1 > x2) {
+        std::swap(x1, x2);
+        std::swap(y1, y2);
+    }
+
+    std::vector<std::pair<glm::vec2, glm::vec3>> segConstructedWithAllPoints;
+    glm::vec3 color(255, 255, 255);
+
+    int dx = x2 - x1;
+    int dy = std::abs(y2 - y1);
+    int error = dx / 2;
+    int yStep = y2 > y1 ? 1 : -1;
+    int y = y1;
+
+    for (int x = x1; x < x2; x++) {
+        if (isSteep) {
+            if (x > 0 && x < height && y > 0 && y < width) {
+                segConstructedWithAllPoints.emplace_back(std::make_pair(glm::vec2(y, x), color));
+            }
+        } else {
+            if (x > 0 && x < width && y > 0 && y < height) {
+                segConstructedWithAllPoints.emplace_back(std::make_pair(glm::vec2(x, y), color));
+            }
+        }
+        error -= 1 * dy;
+        if (error < 0) {
+            y += yStep;
+            error += 1 * dx;
+        }
+    }
+
+    return segConstructedWithAllPoints;
 }
 
 /**

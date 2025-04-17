@@ -6,6 +6,11 @@
 
 const float SCREENSIZE = 666.f;
 
+enum class ShadingMode {
+    BlinnPhong, // Default, rendering mode
+    Wireframes, // Line rendering
+};
+
 class Rasterizer {
 private:
     //This is the set of Polygons loaded from a JSON scene file
@@ -14,7 +19,9 @@ private:
     Camera camera;
     int width = SCREENSIZE;
     int height = SCREENSIZE;
+    ShadingMode shadingMode = ShadingMode::BlinnPhong;
     // std::vector<Vertex> fram_buffer;
+
 public:
     Rasterizer(const std::vector<Polygon>& polygons);
     QImage renderScene();
@@ -22,6 +29,10 @@ public:
 
     void renderPolygon(const Polygon&, QImage&);
     void renderTriangular(const std::array<Segment, 3>&, QImage&, const QImage* const);
+    void setShadingMode(ShadingMode);
+    void renderTriangularBlinnPhong(const std::array<Segment, 3>&, QImage&, const QImage* const);
+    void renderTriangularWireFrames(const std::array<Segment, 3>&, QImage&, const QImage* const);
+    std::vector<std::pair<glm::vec2, glm::vec3>> bresenhamLine(Segment);
 
     Vertex interpolate(const glm::vec2& fragPos,
                        const Vertex& v1,
@@ -66,4 +77,5 @@ public:
     //                                       float fragmentZcoord,
     //                                       const BarycentricWeights &baryWeights) const;
 };
+
 

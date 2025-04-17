@@ -27,17 +27,17 @@ void MainWindow::keyPressEvent(QKeyEvent *e) {
     // Translate or rotate camera based on operation mode
     case Qt::Key_Q:
         if (opMode == OperationMode::Translation) {
-            rasterizer.getCamera().yDirMove(1.5);
+            rasterizer.getCamera().yDirMove(-1.5);
         } else if (opMode == OperationMode::Rotation) {
-            rasterizer.getCamera().zDirRotationDegree(85);
+            rasterizer.getCamera().zDirRotationDegree(-85);
         }
         break;
 
     case Qt::Key_E:
         if (opMode == OperationMode::Translation) {
-            rasterizer.getCamera().yDirMove(-1.5);
+            rasterizer.getCamera().yDirMove(1.5);
         } else if (opMode == OperationMode::Rotation) {
-            rasterizer.getCamera().zDirRotationDegree(-85);
+            rasterizer.getCamera().zDirRotationDegree(85);
         }
         break;
 
@@ -200,7 +200,7 @@ void MainWindow::on_actionLoad_Scene_triggered()
     }
 
     rasterizer = Rasterizer(polygons);
-
+    hasLoadScene = true;
     rendered_image = rasterizer.renderScene();
     DisplayQImage(rendered_image);
 }
@@ -313,4 +313,22 @@ void MainWindow::on_actionEquilateral_Triangle_triggered()
 void MainWindow::on_actionQuit_Esc_triggered()
 {
     QApplication::exit();
+}
+
+void MainWindow::on_actionBlinnPhong_triggered() {
+    if (!hasLoadScene) {
+        return;
+    }
+    rasterizer.setShadingMode(ShadingMode::BlinnPhong);
+    rendered_image = rasterizer.renderScene();
+    DisplayQImage(rendered_image);
+}
+
+void MainWindow::on_actionWireframes_triggered() {
+    if (!hasLoadScene) {
+        return;
+    }
+    rasterizer.setShadingMode(ShadingMode::Wireframes);
+    rendered_image = rasterizer.renderScene();
+    DisplayQImage(rendered_image);
 }

@@ -78,6 +78,10 @@ glm::vec2 Segment::getP2Coordinate() const {
     return glm::vec2(this->p2.m_pos[0], this->p2.m_pos[1]);
 }
 
+float Segment::getGradient() const {
+    return gradient;
+}
+
 /**
  * @brief Polygon::Triangulate
  *        Triangulate a polygon and populate the list of triangles index into m_tris.

@@ -38,6 +38,10 @@ private slots:
 
     void on_actionQuit_Esc_triggered();
 
+    void on_actionBlinnPhong_triggered();
+
+    void on_actionWireframes_triggered();
+
 private:
     Ui::MainWindow *ui;
     Polygon LoadOBJ(const QString &file, const QString &polyName);
@@ -50,6 +54,7 @@ private:
 
     //The instance of the Rasterizer used to render our scene
     Rasterizer rasterizer;
+    bool hasLoadScene = false;
 
     // Operation mode
     OperationMode opMode = OperationMode::Translation;
